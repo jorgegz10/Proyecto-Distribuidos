@@ -1,0 +1,27 @@
+version: '3.9'
+
+services:
+  gestor_carga:
+    build: ./gestor_carga
+    container_name: gestor_carga
+    ports:
+      - "5555:5555"   # REQ/REP
+      - "5556:5556"   # PUB/SUB
+
+  proceso_solicitante:
+    build: ./proceso_solicitante
+    container_name: proceso_solicitante
+    depends_on:
+      - gestor_carga
+
+  actor_devolucion:
+    build: ./actor_devolucion
+    container_name: actor_devolucion
+    depends_on:
+      - gestor_carga
+
+  actor_renovacion:
+    build: ./actor_renovacion
+    container_name: actor_renovacion
+    depends_on:
+      - gestor_carga
