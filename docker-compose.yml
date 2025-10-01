@@ -1,27 +1,80 @@
-version: '3.9'
+version: "3.9"
 
 services:
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    environment:
+      POSTGRES_DB: biblioteca
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./ga/sql:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d biblioteca"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  ga:
+    build: ./ga
+    container_name: ga
+    environment:
+      GA_PORT: 5560
+      PG_HOST: postgres
+      PG_DB: biblioteca
+      PG_USER: postgres
+      PG_PASSWORD: postgres
+      PG_PORT: 5432
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "5560:5560"
+    restart: unless-stopped
+
   gestor_carga:
     build: ./gestor_carga
     container_name: gestor_carga
+    environment:
+      - GC_REP_PORT=5555
+      - GC_PUB_PORT=5556
     ports:
       - "5555:5555"   # REQ/REP
       - "5556:5556"   # PUB/SUB
-
-  proceso_solicitante:
-    build: ./proceso_solicitante
-    container_name: proceso_solicitante
-    depends_on:
-      - gestor_carga
+    restart: unless-stopped
 
   actor_devolucion:
     build: ./actor_devolucion
     container_name: actor_devolucion
+    environment:
+      - GC_HOST=${GC_HOST:-127.0.0.1}  # IP del GC (para 1 PC queda en localhost)
+      - GC_PUB_PORT=5556
+      - GA_HOST=ga
+      - GA_PORT=5560
+      - TOPIC=DEVO
     depends_on:
       - gestor_carga
+      - ga
+    restart: unless-stopped
 
   actor_renovacion:
     build: ./actor_renovacion
     container_name: actor_renovacion
+    environment:
+      - GC_HOST=${GC_HOST:-127.0.0.1}
+      - GC_PUB_PORT=5556
+      - GA_HOST=ga
+      - GA_PORT=5560
+      - TOPIC=RENO
     depends_on:
       - gestor_carga
+      - ga
+    restart: unless-stopped
+
+volumes:
+  pgdata:

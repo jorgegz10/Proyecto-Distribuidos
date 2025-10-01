@@ -1,16 +1,28 @@
+import os
+import time
 import zmq
+
+GC_REP_PORT = int(os.getenv("GC_REP_PORT", "5555"))
+GC_PUB_PORT = int(os.getenv("GC_PUB_PORT", "5556"))
 
 context = zmq.Context()
 
-# Socket REQ/REP para hablar con los PS
+# Socket REQ/REP para hablar con PS
 rep_socket = context.socket(zmq.REP)
-rep_socket.bind("tcp://*:5555")
+
+# Bind a TODAS las interfaces (clave para máquinas distintas)
+rep_socket.bind(f"tcp://0.0.0.0:{GC_REP_PORT}")
 
 # Socket PUB para notificar a los Actores
 pub_socket = context.socket(zmq.PUB)
-pub_socket.bind("tcp://*:5556")
 
-print("GestorCarga listo en puertos 5555 (REP) y 5556 (PUB)")
+# Opcional: subir HWM para no bloquear en picos
+pub_socket.set_hwm(10000)
+pub_socket.bind(f"tcp://0.0.0.0:{GC_PUB_PORT}")
+
+print(f"GestorCarga listo en puertos {GC_REP_PORT} (REP) y {GC_PUB_PORT} (PUB)")
+
+time.sleep(1.0)
 
 while True:
     # Espera solicitud de un PS
